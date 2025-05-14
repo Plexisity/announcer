@@ -39,7 +39,7 @@ timeout = 1
 connection = False
 def wifi_check():
     try:
-        requests.head("http://www.google.com/", timeout=timeout)
+        requests.head("http://discord.com/", timeout=timeout)
         # Connection Success
         print('The internet connection is active')
         connection = True
