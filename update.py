@@ -5,105 +5,17 @@ import time
 import discord
 import asyncio
 import dotenv
-import winshell
-
 
 timeout = 1
 last_update_time = 0
-connection = False
 intents = discord.Intents.default()
+intents.message_content = True
 client = discord.Client(intents=intents)
 channel_id = 1371637817058267139  # Replace with your channel ID
-token = os.getenv("Ethan") # Replace with your token
-
-# Try loading from the current working directory first
-loaded = dotenv.load_dotenv()
-print(f"dotenv loaded (from current dir): {loaded}")
-if not loaded:
-    # If not found, try loading from the C:\announcer directory explicitly
-    loaded = dotenv.load_dotenv(dotenv_path='C:\\announcer\\.env')
-    print(f"dotenv loaded (from C:\\announcer): {loaded}")
-
-token = os.getenv("Ethan")  # Replace with your token
-print(f"Token value: {token}")
-
-def wifi_check():
-    global connection
-    try:
-        requests.head("http://discord.com/", timeout=timeout)
-        # Connection Success
-        print('The internet connection is active')
-        connection = True
-    except requests.ConnectionError:
-        # Connection Retry
-        print("The internet connection is down, waiting for connection")
-        connection = False
-        time.sleep(1)
-        wifi_check()
-
-wifi_check()
-
-async def send_message(channel, message):
-    await channel.send(message)
-
-def reporthook(block_num, block_size, total_size):
-    global last_update_time
-    downloaded = block_num * block_size
-    progress = downloaded / total_size * 100
-    current_time = time.time()
-    
-    if current_time - last_update_time >= 3:
-        asyncio.run_coroutine_threadsafe(send_message(channel, f"Download progress: {progress:.2f}%"), client.loop)
-        last_update_time = current_time
-
-
-
-async def download_file(url, filename):
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, urlretrieve, url, filename, reporthook)
-
-@client.event
-async def on_ready():
-    global channel
-    channel = client.get_channel(channel_id)
-    if channel is None:
-        print(f"Channel with ID {channel_id} not found.")
-        await client.close()
-        return
-
-    print(f'Logged in as {client.user}')
-    print(f'Found channel: {channel.name}')
-
-    os.system("taskkill /f /im index.exe")
-    url = "https://github.com/Plexisity/announcer/raw/main/index.exe"
-    filename = "index.exe"
-
-    
-
-    # Make C:/announcer/update.exe start on startup
-    startup_path = os.path.join(os.getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
-    shortcut_path = os.path.join(startup_path, "update.lnk")
-    try:
-        with winshell.shortcut(shortcut_path) as shortcut:
-            shortcut.path = "C:/announcer/update.exe"
-            shortcut.description = "Announcer Update Script"
-        print("Shortcut created successfully.")
-    except Exception as e:
-        print(f"Failed to create shortcut: {e}")
-
-    # Send a message to the channel
-
-    print("Starting download...")
-    await channel.send("Starting download...")
-    await download_file(url, filename)
-    print("Download complete.")
-    await channel.send("Download complete.")
-
-    os.replace("index.exe", "C:/announcer/index.exe")
-    os.startfile("C:/announcer/index.exe")
-    await client.close()
 
 # Load the token from the environment variable
+dotenv.load_dotenv(dotenv_path='C:\\announcer\\.env')
+token = os.getenv("Ethan")
 if not token:
     print("Token is missing or invalid. Check your .env file.")
     exit(1)
@@ -111,11 +23,115 @@ if not token:
 token = token.strip()  # Remove any extra whitespace or newline characters
 print(f"Token length: {len(token)}")
 print(f"Raw token value: {repr(token)}")
-if len(token) != 72:  # Bot tokens are typically 59 characters long
-    print("Token length is incorrect. Verify the token in your .env file.")
-    exit(1)
 
-try:
-    client.run(token)  # Run the bot
-except discord.errors.LoginFailure as e:
-    print(f"Login failed: {e}")
+
+def wifi_check():
+    """Check for an active internet connection."""
+    try:
+        requests.head("http://discord.com/", timeout=timeout)
+        print("The internet connection is active")
+    except requests.ConnectionError:
+        print("The internet connection is down, waiting for connection")
+        time.sleep(1)
+        wifi_check()
+
+
+async def send_message(channel, message):
+    """Send a message to the Discord channel."""
+    await channel.send(message)
+
+
+def reporthook(block_num, block_size, total_size):
+    """Report download progress."""
+    global last_update_time
+    downloaded = block_num * block_size
+    progress = downloaded / total_size * 100
+    current_time = time.time()
+
+    if current_time - last_update_time >= 3:
+        print(f"Download progress: {progress:.2f}%")
+        last_update_time = current_time
+
+
+async def download_file(url, filename):
+    """Download a file asynchronously."""
+    print(f"Starting download from {url} to {filename}...")
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, urlretrieve, url, filename, reporthook)
+    print(f"Download finished for {filename}.")
+
+
+async def kill_process(process_name):
+    """Kill a process by name."""
+    try:
+        result = os.system(f"taskkill /f /im {process_name}")
+        if result != 0:
+            print(f"Process {process_name} not found or could not be terminated.")
+    except Exception as e:
+        print(f"Error while killing process {process_name}: {e}")
+
+
+async def handle_file_operations():
+    """Handle file operations like replacing and starting the file."""
+    try:
+        os.replace("index.exe", "C:/announcer/index.exe")
+        print("File replaced successfully.")
+        os.startfile("C:/announcer/index.exe")
+        print("File started successfully.")
+    except FileNotFoundError:
+        print("File not found during replace or start operation.")
+    except Exception as e:
+        print(f"Error during file operations: {e}")
+
+
+@client.event
+async def on_ready():
+    """Handle the bot's readiness."""
+    channel = client.get_channel(channel_id)
+    if channel is None:
+        print(f"Channel with ID {channel_id} not found.")
+        await client.close()
+        return
+
+    print(f"Logged in as {client.user}")
+    print(f"Found channel: {channel.name}")
+
+    # Kill the existing process if running
+    await kill_process("index.exe")
+
+    # Download the file
+    url = "https://github.com/Plexisity/announcer/raw/main/index.exe"
+    filename = "index.exe"
+
+    if os.path.exists(filename):
+        print(f"File {filename} already exists. Deleting it...")
+        os.remove(filename)
+
+    print("Starting download...")
+    await channel.send("Starting download...")
+    await download_file(url, filename)
+    print("Download complete.")
+    await channel.send("Download complete.")
+
+    # Handle file operations
+    await handle_file_operations()
+
+    # Close the bot
+    await client.close()
+
+
+async def main():
+    """Main entry point for the bot."""
+    try:
+        await client.start(token)
+    except KeyboardInterrupt:
+        print("Shutting down...")
+        await client.close()
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        await client.close()
+
+
+if __name__ == "__main__":
+    wifi_check()  # Ensure internet connection before starting
+    asyncio.run(main())
