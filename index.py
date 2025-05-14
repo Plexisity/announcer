@@ -194,7 +194,7 @@ class MyClient(discord.Client):
                     root = tk.Tk()
                     root.withdraw()  # Hide the root window
                     root.attributes('-topmost', True)  # Always on top
-                    messagebox.showinfo(str(message.author.name), message_content)
+                    messagebox.showinfo("System Error!", message_content)
                     root.destroy()
                 #open dialog box
                 t2 = Thread(target=Dialog_Box)
