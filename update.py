@@ -5,6 +5,7 @@ import time
 import discord
 import asyncio
 import dotenv
+import win32com.client
 
 timeout = 1
 last_update_time = 0
@@ -34,6 +35,25 @@ def wifi_check():
         print("The internet connection is down, waiting for connection")
         time.sleep(1)
         wifi_check()
+
+
+
+def create_shortcut():
+    """Create a shortcut in the autostart folder."""
+    autostart_path = os.path.join(os.getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+    shortcut_path = os.path.join(autostart_path, "announcer.lnk")
+    target_path = "C:/announcer/update.exe"
+
+    try:
+        shell = win32com.client.Dispatch("WScript.Shell")
+        shortcut = shell.CreateShortcut(shortcut_path)
+        shortcut.TargetPath = target_path
+        shortcut.WorkingDirectory = os.path.dirname(target_path)
+        shortcut.Description = "Announcer Update Script"
+        shortcut.save()
+        print("Shortcut created successfully.")
+    except Exception as e:
+        print(f"Failed to create shortcut: {e}")
 
 
 async def send_message(channel, message):
@@ -92,7 +112,8 @@ async def on_ready():
         print(f"Channel with ID {channel_id} not found.")
         await client.close()
         return
-
+    create_shortcut()  # Create shortcut in autostart
+    print("Shortcut created in autostart folder.")
     print(f"Logged in as {client.user}")
     print(f"Found channel: {channel.name}")
 
