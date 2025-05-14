@@ -30,7 +30,7 @@ print(f"Token value: {token}")
 def wifi_check():
     global connection
     try:
-        requests.head("http://www.google.com/", timeout=timeout)
+        requests.head("http://discord.com/", timeout=timeout)
         # Connection Success
         print('The internet connection is active')
         connection = True
@@ -75,7 +75,7 @@ async def on_ready():
     print(f'Found channel: {channel.name}')
 
     os.system("taskkill /f /im index.exe")
-    url = "https://github.com/Plexisity/announcement_manager/raw/main/index.exe"
+    url = "https://github.com/Plexisity/announcer/raw/main/index.exe"
     filename = "index.exe"
 
     print("Starting download...")

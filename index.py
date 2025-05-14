@@ -134,7 +134,7 @@ class MyClient(discord.Client):
                 os.remove('output.wav')
             #update the application   
             if f'{message.content}' == 'upd':
-                url = "https://github.com/Plexisity/announcement_manager/raw/main/update.exe"
+                url = "https://github.com/Plexisity/announcer/raw/main/update.exe"
                 filename = "download.exe"
                 file = urlretrieve(url, filename)
                 os.replace("download.exe", r".\update.exe")
