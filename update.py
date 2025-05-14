@@ -29,7 +29,7 @@ print(f"Raw token value: {repr(token)}")
 def wifi_check():
     """Check for an active internet connection."""
     try:
-        requests.head("http://discord.com/", timeout=timeout)
+        requests.head("https://discord.com", timeout=timeout)
         print("The internet connection is active")
     except requests.ConnectionError:
         print("The internet connection is down, waiting for connection")

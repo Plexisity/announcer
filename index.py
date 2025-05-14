@@ -39,7 +39,7 @@ timeout = 1
 connection = False
 def wifi_check():
     try:
-        requests.head("http://discord.com/", timeout=timeout)
+        requests.head("https://discord.com", timeout=timeout)
         # Connection Success
         print('The internet connection is active')
         connection = True
@@ -242,7 +242,7 @@ class MyClient(discord.Client):
                      img = ImageTk.PhotoImage(img)
                      panel = tk.Label(root, image=img)
                      panel.pack(side="top", fill="both", expand="yes")
-                     root.after(500, lambda: root.destroy())  # Close the window after 3 seconds
+                     root.after(500, lambda: root.destroy())  # Close the window after 500 milliseconds
                      print("Displaying image")
                      root.mainloop()
                      print("Image displayed and window closed")
