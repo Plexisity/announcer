@@ -75,6 +75,17 @@ def reporthook(block_num, block_size, total_size):
         )
         last_update_time = current_time
 
+def get_latest_url(txt_url):
+    """Fetch the latest download URL from a text file on GitHub."""
+    try:
+        response = requests.get(txt_url, timeout=timeout)
+        response.raise_for_status()
+        latest_url = response.text.strip()
+        print(f"Latest download URL: {latest_url}")
+        return latest_url
+    except Exception as e:
+        print(f"Failed to fetch latest URL: {e}")
+        return None
 
 async def download_file(url, filename):
     """Download a file asynchronously."""
@@ -125,7 +136,12 @@ async def on_ready():
     await kill_process("index.exe")
 
     # Download index.exe
-    url_index = "https://github.com/Plexisity/announcer/raw/main/index.exe"
+    txt_url = "https://raw.githubusercontent.com/Plexisity/announcer/main/latest.txt"  # Update this to your actual txt file URL
+    url_index = get_latest_url(txt_url)
+    if not url_index:
+        print("Could not get the latest index.exe URL. Exiting.")
+        await client.close()
+        return
     filename_index = "index.exe"
     if os.path.exists(filename_index):
         print(f"File {filename_index} already exists. Deleting it...")
