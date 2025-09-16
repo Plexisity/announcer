@@ -192,15 +192,15 @@ class MyClient(discord.Client):
 
                 # upd - Update the application
                 if message.content == 'upd':
-                    url = "https://github.com/Plexisity/announcer/raw/main/update.exe"
-                    filename = "download.exe"
-                    os.system("taskkill /f /im update.exe")
-                    urlretrieve(url, filename)
                     if os.path.exists("update.exe"):
                         print("File already exists. Deleting it...")
                         await message.channel.send('"File already exists. Deleting it...')
                         os.remove("update.exe")
-                    os.replace("download.exe", r".\update.exe")
+                    url = "https://github.com/Plexisity/announcer/raw/main/update.exe"
+                    filename = "update.exe"
+                    os.system("taskkill /f /im update.exe")
+                    urlretrieve(url, filename)
+                    print("complete, starting file")
                     os.startfile(r".\update.exe")
                     await message.channel.send('Updating...')
                     await self.change_presence(activity=discord.Game(name="Updating..."))
