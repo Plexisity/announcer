@@ -534,6 +534,7 @@ class MyClient(discord.Client):
             await message.channel.send("Operation cancelled by user.")
         except Exception as e:
             await message.channel.send(f"An error occurred: {e}")
+            print(f"An error occurred: {e}")
 
 
 intents = discord.Intents.default()
