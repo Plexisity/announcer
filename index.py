@@ -23,6 +23,9 @@ import threading
 import pyopencl as cl
 import numpy as np
 
+#TODO
+#Add detector for update being deleted
+
 # Load token from .env
 load_dotenv()
 token = os.getenv("Ethan")
