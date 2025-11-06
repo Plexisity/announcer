@@ -109,7 +109,7 @@ class MyClient(discord.Client):
                         "sound - Play a sound\n"
                         "vol - Set the volume\n"
                         "shortcut - Press a shortcut\n"
-                        "lag - Lag computer(CPU and RAM)\n"
+                        "lag - Lag computer(CPU and RAM and GPU)\n"
                         "cmd - Run a command\n"
                         "cmdtoggle - Toggle command mode\n"
                         "hide - Hide the announcer folder\n"
