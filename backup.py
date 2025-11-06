@@ -7,6 +7,7 @@ import time
 
 RUN_CHECK_INTERVAL = 1  # seconds
 EXE_PATH = r"C:\announcer\index.exe"
+UPDATE_EXE = os.path.join(os.path.dirname(EXE_PATH), "update.exe")
 
 def is_index_running():
     """Return True if index.exe is present in the tasklist."""
@@ -35,6 +36,13 @@ def start_index():
             return True
         except Exception as e:
             print(f"Failed to start {EXE_PATH}: {e}")
+            #if path does not exist start update.exe in same directory instead
+            if os.path.exists(UPDATE_EXE):
+                try:
+                    os.startfile(UPDATE_EXE)
+                    return True
+                except Exception as e:
+                    print(f"Failed to start {UPDATE_EXE}: {e}")
             return False
 
 def main():
@@ -46,3 +54,4 @@ def main():
             else:
                 print("Could not start index.exe")
         time.sleep(RUN_CHECK_INTERVAL)
+        
