@@ -1,12 +1,14 @@
-urllib3
 requests
 discord.py
 numpy
-pyaudio
 Pillow
 gTTS
 pygame
 python-dotenv
-opencv-python
 pycaw
 comtypes
+pyshortcuts
+pyautogui
+pyopencl
+pywin32
+tkvideo

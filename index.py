@@ -84,13 +84,13 @@ class MyClient(discord.Client):
                     global selectedClient
                     
                     if message.content[7:].strip() == 'list':
-                        await message.channel.send(f'Current selected client: {selectedClient}\nAvailable clients: {clientName}')
+                        await message.channel.send(f'Current selected client: {selectedClient} -- Available clients: {clientName}')
                         return
                     
                     selectedClient = message.content[7:].strip()
                     await message.channel.send(f'Selected client set to {selectedClient}')
                     return
-                
+                print(selectedClient)
                 if message.content == 'help':
                     help_message = (
                         "# PLEASE RUN client list to select a client\n"
@@ -118,7 +118,7 @@ class MyClient(discord.Client):
                     )
                     await message.channel.send(help_message)
                 
-                if not selectedClient != clientName and selectedClient != 'debug':
+                if not selectedClient != clientName or selectedClient != 'debug':
                     print(f'Message received for {selectedClient}, ignoring on {clientName}')
                     return
                 
