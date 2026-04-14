@@ -5,3 +5,9 @@ pyinstaller \
   --add-binary "/usr/bin/grim:." \
   --add-binary "/usr/bin/scrot:." \
   index-linux.py
+
+pyinstaller --onefile --noconsole \
+              --name update-linux \
+              --clean \
+              --add-data ".env:." \
+              update-linux.py 
