@@ -2,6 +2,9 @@
 sounddevice
 soundfile
 mss
+requests
+discord.py
+numpy
 Pillow
 
 discord.py
@@ -17,3 +20,8 @@ tkvideo
 pyopencl
 numpy
 pyaudio
+pyshortcuts
+pyautogui
+pyopencl
+pywin32
+tkvideo
