@@ -1,12 +1,19 @@
-urllib3
-requests
-discord.py
-numpy
-pyaudio
+# audio recording dependencies
+sounddevice
+soundfile
+mss
 Pillow
+
+discord.py
+requests
+pyautogui
 gTTS
 pygame
 python-dotenv
-opencv-python
 pycaw
 comtypes
+Pillow
+tkvideo
+pyopencl
+numpy
+pyaudio
